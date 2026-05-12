@@ -1,0 +1,75 @@
+/* Jellyfin Collection Missing Titles — styles */
+
+/* Expanded card — wider to fit missing titles list */
+/* Responsive expanded card — flexible width for different screens */
+.je-coll-expanded {
+    width: clamp(140px, 35vw, 300px) !important;
+    min-width: 140px !important;
+    max-width: 100vw !important;
+    flex: 1 1 auto !important;
+}
+
+/* Missing-titles block appended inside .cardBox */
+.je-missing-list {
+    padding: 4px 8px 6px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.je-missing-header {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.5;
+    padding: 2px 0 4px;
+}
+
+.je-missing-item {
+    display: block;
+    padding: 3px 5px;
+    font-size: 11.5px;
+    line-height: 1.35;
+    color: rgba(255,255,255,0.75);
+    cursor: pointer;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.12s, color 0.12s;
+    user-select: none;
+}
+.je-missing-item:hover,
+.je-missing-item:focus {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    outline: none;
+}
+
+.je-missing-complete {
+    display: block;
+    padding: 3px 5px;
+    font-size: 11.5px;
+    color: rgba(34,197,94,0.85);
+}
+
+.je-missing-note {
+    display: block;
+    padding: 3px 5px;
+    font-size: 11px;
+    opacity: 0.45;
+    font-style: italic;
+}
+
+/* Toggle button — active state */
+#je-collection-missing-btn.je-btn-active {
+    color: var(--theme-primary-color, #52b54b) !important;
+}
+
+/* Count badge — green when collection has no missing released movies */
+.countIndicator.je-complete-indicator {
+    background-color: #22c55e !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.25);
+}
