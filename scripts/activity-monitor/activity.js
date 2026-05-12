@@ -29,7 +29,7 @@ body.am-no-scroll { overflow: hidden !important; }
     'use strict';
 
     // ─── Constants ───────────────────────────────────────────────────────────
-    const LOG_PREFIX   = '[ActivityMonitor]';
+    const LOG_PREFIX   = '[JW-ActivityMonitor]';
     const BUTTON_ID    = 'am-header-btn';
     const MODAL_ID     = 'am-modal';
     const POLL_MS      = 4000;

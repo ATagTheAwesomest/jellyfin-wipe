@@ -8,7 +8,7 @@
     const POLL_INTERVAL = 1500;
     const RUNTIME_ELEMENT_ID = 'collection-total-runtime';
     const ENDSAT_ELEMENT_ID = 'collection-ends-at';
-    const LOG_PREFIX = '[CollectionRuntime]';
+    const LOG_PREFIX = '[JW-CollectionRuntime]';
 
     function log(...args) {
         console.log(LOG_PREFIX, ...args);

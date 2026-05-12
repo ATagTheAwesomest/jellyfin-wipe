@@ -9,7 +9,7 @@
     const POLL_INTERVAL = 1500;
     const BADGE_ID = 'item-play-stats-badge';
     const POPUP_ID = 'item-play-stats-popup';
-    const LOG_PREFIX = '[PlayStats]';
+    const LOG_PREFIX = '[JW-PlayStats]';
 
     function colorFromName(name) {
         // Normalize: strip non-alpha chars, lowercase

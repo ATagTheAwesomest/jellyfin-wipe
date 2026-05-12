@@ -15,7 +15,7 @@
     'use strict';
 
     // ─── Constants ───────────────────────────────────────────────────────────
-    const LOG_PREFIX     = '[CollectionMissing]';
+    const LOG_PREFIX     = '[JW-CollectionMissing]';
     const BUTTON_ID      = 'je-collection-missing-btn';
     const COMPLETE_COLOR = '#22c55e'; // green for complete collections
     const POLL_INTERVAL  = 1500;   // ms between SPA navigation checks

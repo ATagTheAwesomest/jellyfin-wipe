@@ -20,8 +20,8 @@
     'use strict';
 
     // ─── Constants ───────────────────────────────────────────────────────────
-    const LOG_PREFIX     = '[BrandingCssSectioner]';
-    const MANAGED_MARKER = '/* ═══ [branding-css-sectioner] ═══ */';
+    const LOG_PREFIX     = '[JW-BrandingCssSectioner]';
+    const MANAGED_MARKER = '/* ═══ [JW-branding-css-sectioner] ═══ */';
     // Matches both old format (no tag) and new format (number or "bottom").
     const SECTION_RE     = /\/\* \u2550-\u2550 (.+?) \u2550-\u2550(?:\s+(\d+|bottom))? \*\//g;
     const POLL_INTERVAL  = 1500;

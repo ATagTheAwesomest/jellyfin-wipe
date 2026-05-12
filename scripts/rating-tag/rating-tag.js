@@ -5,7 +5,7 @@
 (function () {
     'use strict';
 
-    const LOG_PREFIX = '[RatingTag]';
+    const LOG_PREFIX = '[JW-RatingTag]';
     const POLL_INTERVAL = 1500;
     const BATCH_SIZE = 10;
     const RATING_CONTAINER_CLASS = 'rating-overlay-container';
