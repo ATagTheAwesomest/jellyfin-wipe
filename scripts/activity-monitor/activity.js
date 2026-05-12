@@ -671,7 +671,8 @@ body.am-no-scroll { overflow: hidden !important; }
 
         const bg      = thumbUrl(s);
         const logo    = logoUrl(s);
-        const bgStyle = bg ? `background-image:url('${bg}')` : '';
+        // Encode single-quote in server-provided URL to prevent CSS url() context breakout.
+        const bgStyle = bg ? `background-image:url('${bg.replace(/'/g, '%27')}')` : '';
 
         const posTicks   = ps.PositionTicks || 0;
         const durTicks   = now?.RunTimeTicks || 0;
@@ -903,7 +904,7 @@ body.am-no-scroll { overflow: hidden !important; }
 
             frame.style.width              = tpInfo.thumbW + 'px';
             frame.style.height             = tpInfo.thumbH + 'px';
-            frame.style.backgroundImage    = `url('${sheetUrl}')`;
+            frame.style.backgroundImage    = `url('${sheetUrl.replace(/'/g, '%27')}')`;
             frame.style.backgroundSize     = `${tpInfo.tileWidth * tpInfo.thumbW}px ${tpInfo.tileHeight * tpInfo.thumbH}px`;
             frame.style.backgroundPosition = `${bgX}px ${bgY}px`;
         }
@@ -1039,7 +1040,7 @@ body.am-no-scroll { overflow: hidden !important; }
             const isDisabled = u.Policy?.IsDisabled;
 
             const avatarStyle = u.PrimaryImageTag
-                ? `background-image:url('${api().getUrl(`/Users/${u.Id}/Images/Primary?tag=${u.PrimaryImageTag}&maxWidth=80&quality=80`)}')`
+                ? `background-image:url('${api().getUrl(`/Users/${u.Id}/Images/Primary?tag=${u.PrimaryImageTag}&maxWidth=80&quality=80`).replace(/'/g, '%27')}')`
                 : '';
 
             const statusDot = isPlaying  ? 'am-dot-playing'
@@ -1353,6 +1354,8 @@ ${transcoding.length ? `
                 const bgY          = -(row * tpInfo.thumbH);
 
                 const a        = api();
+                // Note: api_key in URL is required for CSS background-image — browsers cannot
+                // send Authorization headers for image resources.  Treat this token as sensitive.
                 const sheetUrl = a.getUrl(`/Videos/${tpInfo.itemId}/Trickplay/${tpInfo.width}/Tiles/${sheetIdx}.jpg`)
                                + `?api_key=${encodeURIComponent(a.accessToken())}`;
 
@@ -1362,7 +1365,7 @@ ${transcoding.length ? `
 
                 img.style.width              = tpInfo.thumbW + 'px';
                 img.style.height             = tpInfo.thumbH + 'px';
-                img.style.backgroundImage    = `url('${sheetUrl}')`;
+            img.style.backgroundImage    = `url('${sheetUrl.replace(/'/g, '%27')}')`;
                 img.style.backgroundSize     = `${tpInfo.tileWidth * tpInfo.thumbW}px ${tpInfo.tileHeight * tpInfo.thumbH}px`;
                 img.style.backgroundPosition = `${bgX}px ${bgY}px`;
 

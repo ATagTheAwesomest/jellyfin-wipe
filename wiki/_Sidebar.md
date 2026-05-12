@@ -1,0 +1,12 @@
+- [Home](Home.md)
+- [Installation and Loading](Installation-and-Loading.md)
+- [Script Catalog](Script-Catalog.md)
+- [Dependencies and Compatibility](Dependencies-and-Compatibility.md)
+- [Security and Risk](Security-and-Risk.md)
+- Scripts
+  - [Activity Monitor](../scripts/activity-monitor/README.md)
+  - [Branding CSS Sectioner](../scripts/branding-css-sectioner/README.md)
+  - [Collection Missing](../scripts/collection-missing/README.md)
+  - [Collection Runtime](../scripts/collection-runtime/README.md)
+  - [Play Stats](../scripts/play-stats/README.md)
+  - [Rating Tag](../scripts/rating-tag/README.md)

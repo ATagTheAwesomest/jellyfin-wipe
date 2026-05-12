@@ -2,7 +2,7 @@
 
 Jellyfin Web Injected Personal Enhancements.
 
-A curated super-repo of browser-injected Jellyfin enhancements collected from the standalone script folders in this workspace.
+A curated collection of browser-injected Jellyfin web-client enhancements.
 
 This repo is intentionally focused on small, targeted web-client customisations: header tools, detail-page metadata, collection helpers, card overlays, and admin-page quality-of-life scripts. It does not include server plugins, metadata providers, search filtering, current-page helpers, or unrelated non-Jellyfin projects.
 
@@ -71,21 +71,6 @@ jellyfin-wipe/
       README.md
 ```
 
-## Notes On The Included Docs
+## Scope
 
-Some per-script READMEs were carried over from the original standalone folders and then standardised only where needed. If a script README mentions an older injector path from its original standalone release, prefer the guidance in this super-repo and use Jellyfin Enhanced's JS injector when it fits your setup.
-
-## Deliberately Not Included
-
-This repo excludes the following from the workspace on purpose:
-
-- Jellyfin plugins and plugin solutions
-- `jellyfin-parentalguide`
-- `jellyfin-plugin-imdb`
-- `jellyfin-je-search-filtering`
-- `jellyfin-currentpage-js`
-- Non-Jellyfin projects such as `cinemagoerng`, `IscrapeMDB`, `dxf-manipulation`, and `lut-repackager`
-
-## Migration From The Standalone Folders
-
-The original standalone folders are still present as the archive. Their READMEs have been marked deprecated so you can keep the history while pointing future work and new installs to Jellyfin WIPE.
+This repo covers only the scripts listed in the table above. Jellyfin server plugins, metadata providers, and unrelated utilities are out of scope and are not included.

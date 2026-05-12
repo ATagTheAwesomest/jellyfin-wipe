@@ -27,8 +27,10 @@
     const POLL_INTERVAL  = 1500;
 
     function sectionHeader(name, pinned, order) {
-        return pinned ? `/* ═-═ ${name} ═-═ bottom */`
-                      : `/* ═-═ ${name} ═-═ ${order} */`;
+        // Strip comment-close sequences to prevent CSS comment injection.
+        const safeName = String(name ?? '').replace(/\*\//g, '');
+        return pinned ? `/* ═-═ ${safeName} ═-═ bottom */`
+                      : `/* ═-═ ${safeName} ═-═ ${order} */`;
     }
 
     // ─── State ───────────────────────────────────────────────────────────────
@@ -152,15 +154,23 @@
 
     function loadPrism() {
         if (document.getElementById('bcs-prism-css')) return;
+        // SECURITY: These assets are loaded from a third-party CDN without Subresource
+        // Integrity (SRI) checks.  If your threat model requires it, either replace these
+        // URLs with self-hosted copies or add integrity="sha384-…" and crossOrigin="anonymous"
+        // attributes. SRI hashes can be generated at https://www.srihash.org/ or retrieved
+        // from the jsDelivr API: https://data.jsdelivr.com/v1/package/npm/prismjs@1.29.0
         const link = document.createElement('link');
         link.id   = 'bcs-prism-css';
         link.rel  = 'stylesheet';
+        link.crossOrigin = 'anonymous';
         link.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-okaidia.min.css';
         document.head.appendChild(link);
         const s1 = document.createElement('script');
+        s1.crossOrigin = 'anonymous';
         s1.src    = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
         s1.onload = () => {
             const s2 = document.createElement('script');
+            s2.crossOrigin = 'anonymous';
             s2.src    = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-css.min.js';
             s2.onload = () => { prismReady = true; prismCbs.splice(0).forEach(fn => fn()); };
             document.head.appendChild(s2);
@@ -315,7 +325,7 @@
                 e.stopPropagation();
                 const newName = prompt('Section name:', section.name);
                 if (newName && newName.trim()) {
-                    section.name       = newName.trim();
+                    section.name       = newName.trim().replace(/\*\//g, '');
                     nameEl.textContent = section.name;
                     syncToSource();
                 }
@@ -553,7 +563,7 @@
             const n    = sections.filter(s => !s.locked && !s.pinned).length;
             const name = prompt('New section name:', `Section ${n + 1}`);
             if (!name || !name.trim()) return;
-            const section = { name: name.trim(), content: '', pinned: false };
+            const section = { name: name.trim().replace(/\*\//g, ''), content: '', pinned: false };
             // Insert before the first pinned section so it stays in the normal group.
             const firstPinIdx = sections.findIndex(s => s.pinned);
             firstPinIdx === -1 ? sections.push(section) : sections.splice(firstPinIdx, 0, section);
@@ -574,7 +584,7 @@
             const n    = sections.filter(s => s.pinned).length;
             const name = prompt('Footer section name:', `Footer ${n + 1}`);
             if (!name || !name.trim()) return;
-            sections.push({ name: name.trim(), content: '', pinned: true });
+            sections.push({ name: name.trim().replace(/\*\//g, ''), content: '', pinned: true });
             syncToSource();
             rebuildPanels();
         });
