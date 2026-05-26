@@ -11,6 +11,71 @@
     const RATING_CONTAINER_CLASS = 'rating-overlay-container';
     const RATING_LABEL_CLASS = 'rating-overlay-label';
 
+    const RATING_STYLE_GROUPS = [
+        {
+            key: 'all-audiences',
+            ratings: ['G', 'U', 'FSK0', 'TV-Y7'],
+            innerColor: '#2E7D32',
+            outerColor: '#4CAF50',
+        },
+        {
+            key: 'parental-guidance',
+            ratings: ['PG', '12A', 'DE-6'],
+            // Slight gradient to blend both requested dark-gold tones.
+            innerColor: 'linear-gradient(135deg, #D4AF37 0%, #D19A00 100%)',
+            outerColor: '#FFC107',
+        },
+        {
+            key: 'parents-strongly-cautioned',
+            ratings: ['PG-13', '15', 'AU-M'],
+            innerColor: '#B25900',
+            outerColor: '#FF6F00',
+        },
+        {
+            key: 'mature-accompanied',
+            ratings: ['MA15+', 'FR-16'],
+            innerColor: '#D50000',
+            outerColor: '#FF1744',
+        },
+        {
+            key: 'restricted',
+            ratings: ['R', '18', 'DE-18'],
+            innerColor: '#8B0000',
+            outerColor: '#B71C1C',
+        },
+        {
+            key: 'adults-only',
+            ratings: ['NC-17', 'X18+'],
+            innerColor: '#880E4F',
+            outerColor: '#C2185B',
+        },
+        {
+            key: 'special-categories',
+            ratings: ['S'],
+            innerColor: '#4A148C',
+            outerColor: '#7B1FA2',
+        },
+        {
+            key: 'educational-exempt',
+            ratings: ['EDU', 'EXEMPT'],
+            innerColor: '#0D47A1',
+            outerColor: '#1976D2',
+        },
+        {
+            key: 'unrated-unknown',
+            ratings: ['UNRATED', 'NR', 'UR'],
+            innerColor: '#424242',
+            outerColor: '#757575',
+        },
+    ];
+
+    const DEFAULT_RATING_STYLE = {
+        innerColor: '#424242',
+        outerColor: '#757575',
+    };
+
+    const RATING_STYLE_MAP = buildRatingStyleMap();
+
     // Track processed cards to avoid duplicates
     let processedCards = new WeakSet();
     // Batch queue for API requests
@@ -25,6 +90,35 @@
         console.warn(LOG_PREFIX, ...args);
     }
 
+    function normalizeRatingKey(rating) {
+        return String(rating || '').trim().toUpperCase().replace(/\s+/g, '');
+    }
+
+    function buildRatingStyleMap() {
+        const map = {};
+        for (const group of RATING_STYLE_GROUPS) {
+            for (const rating of group.ratings) {
+                map[normalizeRatingKey(rating)] = {
+                    innerColor: group.innerColor,
+                    outerColor: group.outerColor,
+                };
+            }
+        }
+
+        // Backward-compatible aliases for common TV classifications.
+        map['TV-Y'] = map['G'] || DEFAULT_RATING_STYLE;
+        map['TV-G'] = map['G'] || DEFAULT_RATING_STYLE;
+        map['TV-PG'] = map['PG'] || DEFAULT_RATING_STYLE;
+        map['TV-14'] = map['PG-13'] || DEFAULT_RATING_STYLE;
+        map['TV-MA'] = map['MA15+'] || DEFAULT_RATING_STYLE;
+
+        return map;
+    }
+
+    function getRatingStyle(rating) {
+        return RATING_STYLE_MAP[normalizeRatingKey(rating)] || DEFAULT_RATING_STYLE;
+    }
+
     function injectStyleOnce() {
         if (document.getElementById('je-rating-tag-style')) return;
 
@@ -35,6 +129,19 @@
             '  z-index: 2;',
             '  transition: opacity 0.15s ease;',
             '  pointer-events: none;',
+            '}',
+            '.rating-overlay-label {',
+            '  background: var(--rating-inner-color, #424242);',
+            '  color: #ffffff;',
+            '  border: 2px solid var(--rating-outer-color, #757575);',
+            '  padding: 2px 6px;',
+            '  border-radius: 4px;',
+            '  font-size: 11px;',
+            '  font-weight: 700;',
+            '  text-transform: uppercase;',
+            '  letter-spacing: 0.5px;',
+            '  box-shadow: 0 1px 3px rgba(0,0,0,0.4);',
+            '  opacity: 0.7;',
             '}',
             // Hide badge when card overlay states are active (hover/focus/selected style modes)
             '.card:hover .rating-overlay-container,',
@@ -206,39 +313,9 @@
         label.setAttribute('data-rating', rating);
         label.textContent = rating;
 
-        // Color coding based on rating
-        const ratingColors = {
-            // Movies
-            'G': '#22c55e',        // green
-            'PG': '#84cc16',       // lime
-            'PG-13': '#eab308',    // yellow
-            'R': '#f97316',        // orange
-            'NC-17': '#ef4444',    // red
-            'NR': '#6b7280',       // gray
-            'UR': '#6b7280',       // gray
-            // TV
-            'TV-Y': '#22c55e',
-            'TV-Y7': '#22c55e',
-            'TV-G': '#22c55e',
-            'TV-PG': '#84cc16',
-            'TV-14': '#eab308',
-            'TV-MA': '#ef4444',
-        };
-
-        const bgColor = ratingColors[rating] || '#6b7280';
-
-        label.style.cssText = `
-            background: ${bgColor};
-            color: white;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-            opacity: 0.7;
-        `;
+        const styleToken = getRatingStyle(rating);
+        label.style.setProperty('--rating-inner-color', styleToken.innerColor);
+        label.style.setProperty('--rating-outer-color', styleToken.outerColor);
 
         container.appendChild(label);
 

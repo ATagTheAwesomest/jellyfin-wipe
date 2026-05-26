@@ -30,3 +30,19 @@
 
 - [Activity Monitor](../scripts/activity-monitor/README.md)
 - [Branding CSS Sectioner](../scripts/branding-css-sectioner/README.md)
+
+## Rating Tag Palette
+
+The Rating Tag script supports grouped rating palettes with an inner fill color and outer border color.
+
+| Group | Ratings Included | Inner Color | Outer Border Color |
+|---|---|---|---|
+| General / All Audiences | `G`, `U`, `FSK0`, `TV-Y7` | `#2E7D32` | `#4CAF50` |
+| Parental Guidance Suggested | `PG`, `12A`, `DE-6` | `#D4AF37` + `#D19A00` gradient | `#FFC107` |
+| Parents Strongly Cautioned | `PG-13`, `15`, `AU-M` | `#B25900` | `#FF6F00` |
+| Mature Accompanied | `MA15+`, `FR-16` | `#D50000` | `#FF1744` |
+| Restricted | `R`, `18`, `DE-18` | `#8B0000` | `#B71C1C` |
+| Adults Only | `NC-17`, `X18+` | `#880E4F` | `#C2185B` |
+| Special Categories | `S` | `#4A148C` | `#7B1FA2` |
+| Educational / Exempt | `EDU`, `EXEMPT` | `#0D47A1` | `#1976D2` |
+| Unrated / Unknown | `UNRATED`, `NR` | `#424242` | `#757575` |
