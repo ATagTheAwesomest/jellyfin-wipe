@@ -10,6 +10,7 @@ A client-side JavaScript enhancement for Jellyfin that injects a content rating 
 - Adds a top-right rating badge to movie, episode, and series cards
 - Badge opacity is set to 70% for a softer overlay look
 - Detects count-indicator cards (e.g. series episode counts) and places the rating immediately to the left of the existing count bubble
+- Excludes Scenes/chapter rows so chapter cards do not get rating badges
 - Batches API requests to avoid hammering the server
 - Handles SPA navigation and lazy-loaded cards via `MutationObserver`
 - Works whether or not Jellyfin Enhanced is installed
@@ -40,6 +41,7 @@ A client-side JavaScript enhancement for Jellyfin that injects a content rating 
 2. Rating badges appear on cards automatically — no interaction required.
    - Cards with a count bubble (e.g. series): rating appears immediately to the left of the count bubble.
    - Cards without a count bubble: rating appears in the top-right corner of the image area.
+   - Scenes/chapter cards are intentionally skipped.
 3. Hovering, focusing, or selecting a card hides the badge so the native card overlay remains unobstructed.
 
 ---
@@ -78,6 +80,7 @@ The script also keeps compatibility aliases for common TV labels (`TV-Y`, `TV-G`
 - Item IDs are batched and sent to `GET /Users/{userId}/Items?Ids=...&Fields=OfficialRating`.
 - Each card receives an absolutely-positioned `<div>` badge injected into `.cardScalable`.
 - Cards with a `.countIndicator` bubble have the badge repositioned to sit immediately to the left of it.
+- Scene/chapter cards (including cards inside `#scenesCollapsible`) are ignored.
 - A `MutationObserver` watches for newly added cards (infinite scroll, lazy load) and processes them as they appear.
 
 ---
@@ -94,6 +97,7 @@ The script also keeps compatibility aliases for common TV labels (`TV-Y`, `TV-G`
 
 **Badge missing on some cards but not others**
 - Cards without an `OfficialRating` value in Jellyfin's metadata will not receive a badge. Check the item's metadata in the Jellyfin dashboard.
+- Scene/chapter cards are excluded by design, even if the parent item has a rating.
 
 ---
 

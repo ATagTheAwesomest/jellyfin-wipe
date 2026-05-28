@@ -297,6 +297,19 @@
         }
     }
 
+    function shouldSkipCard(card) {
+        // Scenes/chapters rows reuse the parent movie item id and should not show rating badges.
+        if (card.classList && card.classList.contains('chapterCard')) {
+            return true;
+        }
+
+        if (card.closest('#scenesCollapsible') || card.closest('#scenesContent')) {
+            return true;
+        }
+
+        return false;
+    }
+
     // ─── Insert Rating Overlay ───────────────────────────────────────────────
     function insertRatingOverlay(anchor, rating) {
         if (anchor.querySelector('.' + RATING_CONTAINER_CLASS)) return;
@@ -341,6 +354,15 @@
     function processCard(card) {
         if (processedCards.has(card)) {
             log('Card already processed');
+            return;
+        }
+
+        if (shouldSkipCard(card)) {
+            const existingOverlay = card.querySelector('.' + RATING_CONTAINER_CLASS);
+            if (existingOverlay) {
+                existingOverlay.remove();
+            }
+            processedCards.add(card);
             return;
         }
 
