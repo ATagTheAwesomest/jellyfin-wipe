@@ -104,3 +104,75 @@ The script also keeps compatibility aliases for common TV labels (`TV-Y`, `TV-G`
 ## Console logging
 
 The script logs to the browser console with a `[RatingTag]` prefix. Open **F12 → Console** to observe it.
+
+---
+
+## JE Edition — `rating-tag-je.js`
+
+A drop-in replacement for `rating-tag.js` designed to work **alongside** [Jellyfin Enhanced](https://github.com/n00bcodr/Jellyfin-Enhanced) (JE). Instead of placing the badge on the raw card DOM, it injects the badge directly inside JE's own overlay containers so the badge automatically respects whichever corner JE is configured to use.
+
+> Do **not** load `rating-tag.js` and `rating-tag-je.js` at the same time. The JE edition is a full replacement.
+
+### Additional features over `rating-tag.js`
+
+| Feature | Detail |
+|---|---|
+| JE container piggyback | Badge lives inside `.genre-overlay-container`, inheriting JE's corner position setting |
+| Corner-change resilience | Badge survives JE's container wipe (`reinitializeGenreTags`) via an in-memory rating cache |
+| Late-load upgrade | Cards that got the floating fallback badge are upgraded automatically when JE's containers appear |
+| JE settings panel toggle | A **Rating / Genre** toggle row is injected directly into the JE settings panel |
+| Per-user persistence | Toggle choice is saved to your Jellyfin display preferences — no admin rights required, each user has their own setting |
+| Jellyseerr cards skipped | Cards with the `jellyseerr-card` class are silently ignored |
+
+### Requirements
+
+| Requirement | Notes |
+|---|---|
+| Jellyfin Enhanced plugin | Provides the `.je-tag-host` / `.genre-overlay-container` DOM structure the script piggybacks on |
+| Jellyfin web client with `ApiClient` | Standard Jellyfin web sessions expose this globally |
+| A trusted JS injector | JE's built-in JS Injector is the recommended loader |
+
+### Installation
+
+1. Load `rating-tag-je.js` through the JE JS Injector (or any trusted injector).
+2. Hard-refresh the client (`Ctrl+Shift+R`).
+3. Browse any library — badges appear automatically.
+
+### Display modes
+
+Open the JE settings panel (the `?` button) and look for the **<span style="color:#00A4DC">Rating</span> / Genre** row underneath the *Show Genre Tags* toggle.
+
+| Button | What shows on cards |
+|---|---|
+| **Rating** *(default)* | Parental rating badge only; JE genre icons hidden |
+| **Both** | Parental rating badge **and** JE genre icons side-by-side |
+| **Genres** | JE genre icons only; rating badge hidden |
+
+The chosen mode is saved to your personal Jellyfin display preferences (`DisplayPreferences.CustomPrefs`) and is restored on every page load. No server restart or CSS editing required.
+
+### How it works
+
+- When JE is loaded the badge is inserted as the first child of `.genre-overlay-container` (falling back to `.quality-overlay-container`), so it moves with whatever corner JE assigns.
+- A `Map`-based in-memory cache (`itemId → rating`) is kept alive across JE container rebuilds. When JE reinitialises after a corner change the `MutationObserver` detects the new container and re-injects from cache — no extra API call.
+- Cards that render before JE initialises receive a floating fallback badge on `.cardScalable`. Once JE's containers appear the fallback is replaced automatically.
+- On load the script reads the saved mode from `GET /DisplayPreferences/usersettings`; on toggle click the updated preference is written back via `POST`.
+- Live mode changes are applied immediately by updating a `<style id="je-rating-tag-je-mode-style">` element — no page reload needed.
+
+### Console logging
+
+The JE edition logs with a `[JW-RatingTag-JE]` prefix. Open **F12 → Console** to observe it.
+
+### Troubleshooting
+
+**Toggle row does not appear in the JE settings panel**
+The script targets `#genreTagsToggle` inside the panel. If a newer version of JE renames this element the toggle will silently skip injection. Inspect the panel DOM and update the selector in the script if needed.
+
+**Mode choice does not persist after a page reload**
+The `DisplayPreferences` POST requires an active logged-in session. Guest sessions cannot save preferences. Confirm `ApiClient.getCurrentUserId()` returns a value in the console.
+
+**Badge disappears after changing the JE genre corner**
+This should be handled by the rating cache. If it still happens, look for `[JW-RatingTag-JE]` warnings in the console — the `MutationObserver` may have missed the container insertion if JE batches DOM changes in an unexpected way.
+
+**Badges appear twice on a card**
+Do not load both `rating-tag.js` and `rating-tag-je.js` at the same time.
+
