@@ -9,11 +9,14 @@
 //
 // Section delimiter format (written into the CSS):
 //
-//   /* ═══ [branding-css-sectioner] ═══ */     ← written once at the top
-//   /* ═-═ Section name ═-═ 0 */               ← normal section (order index)
-//   /* ═-═ Footer name ═-═ bottom */           ← pinned-to-bottom section
+//   /* ═══ [JW-branding-css-sectioner] ═══ */    ← written once at the top
+//   /* ═-═ Section name ═-═ 0 */                 ← normal section (order index)
+//   /* ═-═ Footer name ═-═ bottom */             ← pinned-to-bottom section
+//   /* ═-═ Disabled section ═-═ 1 disabled */    ← disabled section
 //
-// Backward compatible: old-format markers without an order tag are also parsed.
+// Backward compatible: Reads both old marker format ([branding-css-sectioner])
+// and new format ([JW-branding-css-sectioner]). Sections without order tags or
+// "disabled" tags are also parsed. Always writes new format when saving.
 // Any CSS above the managed marker is preserved in a locked read-only panel.
 
 (function () {
@@ -22,19 +25,21 @@
     // ─── Constants ───────────────────────────────────────────────────────────
     const LOG_PREFIX     = '[JW-BrandingCssSectioner]';
     const MANAGED_MARKER = '/* ═══ [JW-branding-css-sectioner] ═══ */';
-    // Matches both old format (no tag) and new format (number or "bottom").
-    const SECTION_RE     = /\/\* \u2550-\u2550 (.+?) \u2550-\u2550(?:\s+(\d+|bottom))? \*\//g;
+    const OLD_MARKER     = '/* ═══ [branding-css-sectioner] ═══ */';  // Backward compat
+    // Matches both old format (no tag) and new format (number or "bottom"), plus optional "disabled".
+    const SECTION_RE     = /\/\* \u2550-\u2550 (.+?) \u2550-\u2550(?:\s+(\d+|bottom))?(?:\s+(disabled))? \*\//g;
     const POLL_INTERVAL  = 1500;
 
-    function sectionHeader(name, pinned, order) {
+    function sectionHeader(name, pinned, order, enabled = true) {
         // Strip comment-close sequences to prevent CSS comment injection.
         const safeName = String(name ?? '').replace(/\*\//g, '');
-        return pinned ? `/* ═-═ ${safeName} ═-═ bottom */`
-                      : `/* ═-═ ${safeName} ═-═ ${order} */`;
+        const disabledTag = enabled ? '' : ' disabled';
+        return pinned ? `/* ═-═ ${safeName} ═-═ bottom${disabledTag} */`
+                      : `/* ═-═ ${safeName} ═-═ ${order}${disabledTag} */`;
     }
 
     // ─── State ───────────────────────────────────────────────────────────────
-    let sections       = [];   // [{ name, content, pinned, locked? }]
+    let sections       = [];   // [{ name, content, pinned, locked?, enabled? }]
     let sourceTextarea = null;
     let uiRoot         = null;
     let retryTimer     = null;
@@ -50,19 +55,26 @@
     // ─── Parsing / serialisation ─────────────────────────────────────────────
 
     function parseSections(css) {
-        const markerIdx = css.indexOf(MANAGED_MARKER);
+        // Check for both new and old marker formats
+        let markerIdx = css.indexOf(MANAGED_MARKER);
+        let foundMarker = MANAGED_MARKER;
+        
+        if (markerIdx === -1) {
+            markerIdx = css.indexOf(OLD_MARKER);
+            foundMarker = OLD_MARKER;
+        }
 
         // Not yet managed — treat the whole value as one editable section.
         if (markerIdx === -1) {
-            return [{ name: 'Main', content: css.trim(), pinned: false }];
+            return [{ name: 'Main', content: css.trim(), pinned: false, enabled: true }];
         }
 
         const preamble   = css.slice(0, markerIdx).trim();
-        const managedCss = css.slice(markerIdx + MANAGED_MARKER.length);
+        const managedCss = css.slice(markerIdx + foundMarker.length);
 
         const headers = [...managedCss.matchAll(SECTION_RE)];
         // Split on both old-format and new-format markers.
-        const parts   = managedCss.split(/\/\* \u2550-\u2550 .+? \u2550-\u2550(?:\s+(?:\d+|bottom))? \*\//);
+        const parts   = managedCss.split(/\/\* \u2550-\u2550 .+? \u2550-\u2550(?:\s+(?:\d+|bottom))?(?:\s+disabled)? \*\//);
 
         const normal = [];
         const pinned = [];
@@ -70,11 +82,18 @@
         for (let i = 0; i < headers.length; i++) {
             const name    = headers[i][1].trim();
             const tag     = headers[i][2]; // undefined | digit string | "bottom"
-            const content = (parts[i + 1] || '').trim();
+            const disabledTag = headers[i][3]; // undefined | "disabled"
+            let content   = (parts[i + 1] || '').trim();
             const isPin   = tag === 'bottom';
             const order   = (tag && tag !== 'bottom') ? parseInt(tag, 10) : null;
+            const enabled = disabledTag !== 'disabled';  // Default to true if not "disabled"
 
-            const section = { name, content, pinned: isPin, order };
+            // If disabled, the content might be wrapped in /* ... */ - unwrap it for editing
+            if (!enabled && content.startsWith('/*') && content.endsWith('*/')) {
+                content = content.slice(2, -2).trim();
+            }
+
+            const section = { name, content, pinned: isPin, order, enabled };
             isPin ? pinned.push(section) : normal.push(section);
         }
 
@@ -92,9 +111,10 @@
         result.push(...normal, ...pinned);
 
         if (result.filter(s => !s.locked).length === 0) {
-            result.push({ name: 'Section 1', content: '', pinned: false });
+            result.push({ name: 'Section 1', content: '', pinned: false, enabled: true });
         }
 
+        log(`Parsed ${headers.length} section(s) using ${foundMarker === OLD_MARKER ? 'old' : 'new'} marker format`);
         return result;
     }
 
@@ -104,11 +124,22 @@
         const pinnedSecs = secs.filter(s => !s.locked && s.pinned);
 
         const managed = [
-            ...nonPinned.map((s, i) => `${sectionHeader(s.name, false, i)}\n${s.content.trim()}`),
-            ...pinnedSecs.map(s     => `${sectionHeader(s.name, true)}\n${s.content.trim()}`),
+            ...nonPinned.map((s, i) => {
+                const isEnabled = s.enabled !== false;  // Default to enabled if undefined
+                const header = sectionHeader(s.name, false, i, isEnabled);
+                const content = s.content.trim();
+                // If disabled, wrap content in comments so it doesn't affect the server
+                return isEnabled ? `${header}\n${content}` : `${header}\n/* ${content} */`;
+            }),
+            ...pinnedSecs.map(s => {
+                const isEnabled = s.enabled !== false;  // Default to enabled if undefined
+                const header = sectionHeader(s.name, true, undefined, isEnabled);
+                const content = s.content.trim();
+                return isEnabled ? `${header}\n${content}` : `${header}\n/* ${content} */`;
+            }),
         ].join('\n\n');
 
-        const body = `${MANAGED_MARKER}\n${managed}`;
+        const body = `${MANAGED_MARKER}\n${managed}`;  // Always use new marker when saving
         return preamble ? `${preamble.content.trim()}\n\n${body}` : body;
     }
 
@@ -232,11 +263,13 @@
     function makeSectionPanel(section) {
         const details = document.createElement('details');
         // Start collapsed
+        const isDisabled = section.enabled === false;
         Object.assign(details.style, {
-            background:   section.pinned ? 'rgba(255,200,80,0.06)' : 'rgba(255,255,255,0.05)',
+            background:   section.pinned ? 'rgba(255,200,80,0.06)' : isDisabled ? 'rgba(128,128,128,0.08)' : 'rgba(255,255,255,0.05)',
             borderRadius: '8px',
             marginBottom: '0.75em',
-            border:       section.pinned ? '1px solid rgba(255,200,80,0.2)' : '1px solid transparent',
+            border:       section.pinned ? '1px solid rgba(255,200,80,0.2)' : isDisabled ? '1px solid rgba(128,128,128,0.3)' : '1px solid transparent',
+            opacity:      isDisabled ? '0.6' : '1',
         });
 
         // ── Summary row ──
@@ -298,6 +331,13 @@
             left.append(arrow, nameEl);
         }
 
+        if (isDisabled) {
+            const disabledLabel = document.createElement('span');
+            disabledLabel.textContent = '(disabled)';
+            disabledLabel.style.cssText = 'font-size:0.75em;color:#999;font-style:italic;flex-shrink:0;';
+            left.appendChild(disabledLabel);
+        }
+
         // Right: action buttons
         const right = document.createElement('div');
         right.style.cssText = 'display:flex;align-items:center;gap:0.25em;flex-shrink:0;';
@@ -310,6 +350,19 @@
             lockIcon.style.cssText = 'font-size:16px;color:#777;';
             right.appendChild(lockIcon);
         } else {
+            const toggleBtn = makeIconBtn(
+                isDisabled ? 'visibility_off' : 'visibility',
+                isDisabled ? '#999' : '#4caf50',
+                isDisabled ? 'Enable section (uncomment when saving)' : 'Disable section (comment out when saving)'
+            );
+            toggleBtn.querySelector('i').style.fontSize = '18px';
+            toggleBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                section.enabled = !section.enabled;
+                rebuildPanels();
+                syncToSource();
+            });
+
             const pinBtn = makeIconBtn('push_pin', section.pinned ? '#ffb833' : '#555',
                 section.pinned ? 'Unpin (restore to normal order)' : 'Pin to bottom');
             pinBtn.querySelector('i').style.fontSize = '16px';
@@ -344,7 +397,7 @@
                 rebuildPanels();
             });
 
-            right.append(pinBtn, renameBtn, deleteBtn);
+            right.append(toggleBtn, pinBtn, renameBtn, deleteBtn);
         }
 
         summary.append(left, right);
@@ -563,7 +616,7 @@
             const n    = sections.filter(s => !s.locked && !s.pinned).length;
             const name = prompt('New section name:', `Section ${n + 1}`);
             if (!name || !name.trim()) return;
-            const section = { name: name.trim().replace(/\*\//g, ''), content: '', pinned: false };
+            const section = { name: name.trim().replace(/\*\//g, ''), content: '', pinned: false, enabled: true };
             // Insert before the first pinned section so it stays in the normal group.
             const firstPinIdx = sections.findIndex(s => s.pinned);
             firstPinIdx === -1 ? sections.push(section) : sections.splice(firstPinIdx, 0, section);
@@ -584,13 +637,17 @@
             const n    = sections.filter(s => s.pinned).length;
             const name = prompt('Footer section name:', `Footer ${n + 1}`);
             if (!name || !name.trim()) return;
-            sections.push({ name: name.trim().replace(/\*\//g, ''), content: '', pinned: true });
+            sections.push({ name: name.trim().replace(/\*\//g, ''), content: '', pinned: true, enabled: true });
             syncToSource();
             rebuildPanels();
         });
 
         addRow.append(addBtn, addFooterBtn);
         uiRoot.appendChild(addRow);
+
+        // Immediately migrate old marker format → new format in the hidden textarea
+        // so Jellyfin's Save button always writes the current format, even with no edits.
+        syncToSource();
     }
 
     function teardown() {

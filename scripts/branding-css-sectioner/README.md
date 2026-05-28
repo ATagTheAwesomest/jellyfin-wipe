@@ -12,6 +12,7 @@ The script keeps Jellyfin's original save flow intact by writing every edit back
 - Supports collapsible panels for faster navigation
 - Preserves pre-existing unmanaged CSS above the managed marker as read-only content
 - Supports sortable normal sections plus pinned-to-bottom sections
+- Enable/disable sections to comment out code on save without deleting it (code remains editable in preview)
 - Serialises changes back into Jellyfin's original textarea automatically
 - Supports both the current section marker format and older marker variants
 - Adds CSS syntax highlighting via Prism.js
@@ -42,10 +43,19 @@ The script keeps Jellyfin's original save flow intact by writing every edit back
 The script writes managed blocks into the Branding CSS field using the following format:
 
 ```css
-/* ═══ [branding-css-sectioner] ═══ */
+/* ═══ [JW-branding-css-sectioner] ═══ */
 /* ═-═ Section name ═-═ 0 */
 /* ═-═ Footer name ═-═ bottom */
+/* ═-═ Disabled section ═-═ 1 disabled */
 ```
+
+Disabled sections have their content wrapped in `/* ... */` comments when saved:
+```css
+/* ═-═ Disabled section ═-═ 1 disabled */
+/* .selector { color: red; } */
+```
+
+**Backward compatibility:** The script can read CSS created with older versions that use `[branding-css-sectioner]` (without "JW-") and sections without order tags or disabled flags. When you save, it migrates to the new format automatically.
 
 Anything above the managed marker is preserved as pre-existing content.
 
@@ -56,9 +66,10 @@ Anything above the managed marker is preserved as pre-existing content.
 1. Open **Dashboard → General → Branding** — the sectioned editor replaces the default textarea automatically.
 2. Use the **+** button to add a new normal section; use the pinned section option for footer-style overrides that should remain at the bottom.
 3. Drag sections to reorder them; click a section header to collapse or expand it.
-4. Edit CSS in each section's field — changes are serialised back into Jellyfin's source textarea on every keystroke.
-5. Click the normal Jellyfin **Save** button when done — no extra save step required.
-6. Export your CSS before major edits if you want an external backup.
+4. Click the **eye icon** to disable/enable a section — disabled sections are commented out when saved but remain editable in the preview.
+5. Edit CSS in each section's field — changes are serialised back into Jellyfin's source textarea on every keystroke.
+6. Click the normal Jellyfin **Save** button when done — no extra save step required.
+7. Export your CSS before major edits if you want an external backup.
 
 ---
 
@@ -69,6 +80,7 @@ Anything above the managed marker is preserved as pre-existing content.
 - Content above the managed marker (`/* ═══ [branding-css-sectioner] ═══ */`) is shown as read-only pre-existing CSS.
 - Content below the marker is parsed into named section blocks using the `/* ═-═ Name ═-═ index */` format.
 - Each section is rendered as a collapsible panel with a Prism.js-highlighted editor.
+- Sections can be disabled (eye icon) — disabled sections are commented out in the saved CSS but remain editable in the preview.
 - Every edit is serialised back into the hidden source textarea so Jellyfin's native save button picks it up without modification.
 - Older marker variants are detected and migrated to the current format on save.
 
