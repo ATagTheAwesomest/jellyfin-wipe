@@ -9,7 +9,7 @@
 | [Collection Missing](../scripts/collection-missing/README.md) | `collection-missing.js`, `collection-missing.css` | Collection grids | Jellyfin Enhanced and Jellyseerr integration | Auditing missing titles in collections |
 | [Collection Runtime](../scripts/collection-runtime/README.md) | `collection-runtime.js` | Collection details | None beyond Jellyfin API access | Showing total collection runtime in headers |
 | [Play Stats](../scripts/play-stats/README.md) | `play-stats.js` | Media details | Playback Reporting plugin | Showing total and per-user play counts |
-| [Rating Tag](../scripts/rating-tag/README.md) | `rating-tag.js` | Media cards | None beyond Jellyfin API access | Showing content ratings directly on cards |
+| [Rating Tag](../scripts/rating-tag/README.md) | `rating-tag.js` | Media cards | None beyond Jellyfin API access | Showing content ratings directly on cards, excluding Scenes/chapter rows |
 
 ## By Dependency
 

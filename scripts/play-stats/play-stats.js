@@ -1,7 +1,7 @@
 // Jellyfin Play Stats
-// Inject this script into the Jellyfin web client to display total play counts on media detail pages.
+// Inject this script into the Jellyfin web client to display runtime-weighted play stats on media detail pages.
 // Queries the Playback Reporting Plugin API (/user_usage_stats/submit_custom_query).
-// Hover over the play count badge to see a per-user pie chart breakdown.
+// Hover over the badge to see a per-user pie chart breakdown weighted by watch time.
 
 (function () {
     'use strict';
@@ -70,6 +70,60 @@
         return match ? match[1] : null;
     }
 
+    function formatDuration(totalSeconds) {
+        const s = Math.max(0, Math.round(Number(totalSeconds) || 0));
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+
+        if (h > 0) {
+            return h + 'h ' + String(m).padStart(2, '0') + 'm';
+        }
+        if (m > 0) {
+            return m + 'm ' + String(sec).padStart(2, '0') + 's';
+        }
+        return sec + 's';
+    }
+
+    function formatEquivalentPlays(value) {
+        const n = Number(value) || 0;
+        if (n >= 10) return n.toFixed(1);
+        return n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+    }
+
+    // Playback Reporting setups vary: some store seconds, some milliseconds, some ticks.
+    function normalizeDurationToSeconds(rawDuration, runtimeSeconds) {
+        const raw = Number(rawDuration);
+        if (!Number.isFinite(raw) || raw <= 0) return 0;
+
+        const sec = raw;
+        const ms = raw / 1000;
+        const ticks = raw / 10000000;
+
+        if (!runtimeSeconds || runtimeSeconds <= 0) {
+            if (raw > 1e9) return ticks;
+            if (raw > 1e6) return ms;
+            return sec;
+        }
+
+        const maxReasonableEquivalent = 50;
+        const secEq = sec / runtimeSeconds;
+        const msEq = ms / runtimeSeconds;
+        const ticksEq = ticks / runtimeSeconds;
+
+        const secReasonable = secEq <= maxReasonableEquivalent;
+        const msReasonable = msEq <= maxReasonableEquivalent;
+        const ticksReasonable = ticksEq <= maxReasonableEquivalent;
+
+        if (secReasonable) return sec;
+        if (msReasonable) return ms;
+        if (ticksReasonable) return ticks;
+
+        if (Math.abs(msEq - 1) < Math.abs(secEq - 1)) return ms;
+        if (Math.abs(ticksEq - 1) < Math.abs(secEq - 1)) return ticks;
+        return sec;
+    }
+
     // Only allow hex characters and hyphens — guards against injection via tampered URLs
     function isValidItemId(id) {
         return id && /^[0-9a-f-]+$/i.test(id);
@@ -84,7 +138,7 @@
         // Sanitize to hex + hyphens only before embedding in SQL
         const safeId = itemId.replace(/[^0-9a-fA-F-]/g, '');
 
-        const sql = `SELECT UserId, COUNT(*) as PlayCount FROM PlaybackActivity WHERE ItemId = '${safeId}' GROUP BY UserId ORDER BY PlayCount DESC`;
+        const sql = `SELECT UserId, COUNT(*) as PlayCount, COALESCE(SUM(PlayDuration), 0) as TotalPlayDuration FROM PlaybackActivity WHERE ItemId = '${safeId}' GROUP BY UserId ORDER BY TotalPlayDuration DESC, PlayCount DESC`;
         log('SQL:', sql);
 
         try {
@@ -128,13 +182,45 @@
         }
     }
 
-    function parseStats(data, userNames) {
+    async function fetchItemRuntimeSeconds(apiClient, itemId) {
+        const serverUrl = apiClient.serverAddress();
+        const token = apiClient.accessToken();
+        const currentUserId = typeof apiClient.getCurrentUserId === 'function' ? apiClient.getCurrentUserId() : null;
+
+        const basePath = currentUserId
+            ? '/Users/' + encodeURIComponent(currentUserId) + '/Items/' + encodeURIComponent(itemId)
+            : '/Items/' + encodeURIComponent(itemId);
+
+        try {
+            const res = await fetch(serverUrl + basePath + '?Fields=RunTimeTicks', {
+                headers: { 'Authorization': 'MediaBrowser Token="' + token + '"' }
+            });
+
+            if (!res.ok) {
+                logWarn('Failed to fetch item runtime:', res.status, res.statusText);
+                return 0;
+            }
+
+            const item = await res.json();
+            const runTimeTicks = Number(item.RunTimeTicks || 0);
+            if (!Number.isFinite(runTimeTicks) || runTimeTicks <= 0) return 0;
+            return runTimeTicks / 10000000;
+        } catch (e) {
+            logWarn('Failed to fetch item runtime:', e);
+            return 0;
+        }
+    }
+
+    function parseStats(data, userNames, runtimeSeconds) {
         // Plugin has a typo — "colums" — but handle both spellings
         const columns = (data.colums || data.columns || []).map(function (c) { return c.toLowerCase(); });
         const results = data.results || [];
 
         const userIdIdx = columns.indexOf('userid');
         const countIdx = columns.indexOf('playcount');
+        const durationIdx = columns.indexOf('totalplayduration') !== -1
+            ? columns.indexOf('totalplayduration')
+            : columns.indexOf('playduration');
 
         if (userIdIdx === -1 || countIdx === -1) {
             log('No play data returned from API.');
@@ -145,18 +231,24 @@
             .map(function (row) {
                 const userId = (row[userIdIdx] || '').toLowerCase();
                 const count = parseInt(row[countIdx], 10) || 0;
+                const rawDuration = durationIdx !== -1 ? row[durationIdx] : 0;
+                const durationSec = durationIdx !== -1
+                    ? normalizeDurationToSeconds(rawDuration, runtimeSeconds)
+                    : (runtimeSeconds > 0 ? count * runtimeSeconds : 0);
+                const equivalentPlays = runtimeSeconds > 0 ? (durationSec / runtimeSeconds) : count;
                 const name = userNames[userId] || (userId.substring(0, 8) + '…');
-                return { userId, name, count };
+                return { userId, name, count, durationSec, equivalentPlays };
             })
-            .filter(function (s) { return s.count > 0; });
+            .filter(function (s) { return s.equivalentPlays > 0 || s.count > 0; });
     }
 
     // ─── Pie Chart ───────────────────────────────────────────────────────────────
 
     function buildPopupHTML(stats) {
-        const total = stats.reduce(function (s, x) { return s + x.count; }, 0);
+        const totalEquivalent = stats.reduce(function (s, x) { return s + x.equivalentPlays; }, 0);
+        const totalDuration = stats.reduce(function (s, x) { return s + x.durationSec; }, 0);
 
-        if (total === 0) {
+        if (totalEquivalent === 0) {
             return '<p style="color:#aaa;margin:0;font-size:13px">No plays recorded yet.</p>';
         }
 
@@ -174,7 +266,7 @@
             let startAngle = -Math.PI / 2;
             stats.forEach(function (s, i) {
                 const color = colorFromName(s.name);
-                const fraction = s.count / total;
+                const fraction = s.equivalentPlays / totalEquivalent;
                 const endAngle = startAngle + fraction * 2 * Math.PI;
 
                 const x1 = (cx + r * Math.cos(startAngle)).toFixed(2);
@@ -195,12 +287,13 @@
         let legendHtml = '';
         stats.forEach(function (s, i) {
             const color = colorFromName(s.name);
-            const pct = Math.round((s.count / total) * 100);
+            const pct = Math.round((s.equivalentPlays / totalEquivalent) * 100);
             legendHtml +=
                 '<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">' +
                 '<div style="width:10px;height:10px;border-radius:2px;background:' + color + ';flex-shrink:0"></div>' +
                 '<span style="font-size:12px;color:#ddd;white-space:nowrap">' +
-                escapeHtml(s.name) + ': ' + s.count + ' play' + (s.count !== 1 ? 's' : '') +
+                escapeHtml(s.name) + ': ' + formatEquivalentPlays(s.equivalentPlays) + 'x' +
+                ' <span style="color:#aaa">(' + formatDuration(s.durationSec) + ', ' + s.count + ' start' + (s.count !== 1 ? 's' : '') + ')</span>' +
                 ' <span style="color:#888">(' + pct + '%)</span>' +
                 '</span>' +
                 '</div>';
@@ -214,7 +307,8 @@
             '<div style="flex:1;min-width:130px">' +
             legendHtml +
             '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #3a3a4a;font-size:12px;color:#aaa">' +
-            'Total: <strong style="color:#ddd">' + total + ' play' + (total !== 1 ? 's' : '') + '</strong>' +
+                'Total: <strong style="color:#ddd">' + formatEquivalentPlays(totalEquivalent) + 'x plays</strong>' +
+                ' <span style="color:#888">(' + formatDuration(totalDuration) + ' watched)</span>' +
             '</div>' +
             '</div>' +
             '</div>';
@@ -352,9 +446,10 @@
         log('Querying play stats for item:', itemId);
 
         try {
-            const [reportData, userNames] = await Promise.all([
+            const [reportData, userNames, runtimeSeconds] = await Promise.all([
                 queryPlaybackReporting(apiClient, itemId),
-                fetchUserNames(apiClient)
+                fetchUserNames(apiClient),
+                fetchItemRuntimeSeconds(apiClient, itemId)
             ]);
 
             if (reportData === null) {
@@ -363,11 +458,17 @@
                 return;
             }
 
-            const stats = parseStats(reportData, userNames);
-            const total = stats.reduce(function (s, x) { return s + x.count; }, 0);
-            const label = total === 0 ? '0 plays' : (total + ' play' + (total !== 1 ? 's' : ''));
+            if (runtimeSeconds <= 0) {
+                logWarn('Runtime unavailable; using raw play counts as fallback');
+            }
 
-            log('Stats:', JSON.stringify(stats), '| Total:', total);
+            const stats = parseStats(reportData, userNames, runtimeSeconds);
+            const totalEquivalent = stats.reduce(function (s, x) { return s + x.equivalentPlays; }, 0);
+            const label = totalEquivalent === 0
+                ? '0 plays'
+                : (formatEquivalentPlays(totalEquivalent) + 'x plays');
+
+            log('Stats:', JSON.stringify(stats), '| Runtime(s):', runtimeSeconds, '| TotalEquivalent:', totalEquivalent);
             insertOrUpdateBadge(label, stats);
         } catch (e) {
             logWarn('Unexpected error in checkAndDisplayStats:', e);

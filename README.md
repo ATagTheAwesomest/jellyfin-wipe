@@ -21,7 +21,7 @@ This repo is intentionally focused on small, targeted web-client customisations:
 | Collection Missing | `scripts/collection-missing` | `collection-missing.js`, `collection-missing.css` | Collection library grids | Jellyfin Enhanced + Jellyseerr integration | Shows missing titles in collections and opens the request overlay |
 | Collection Runtime | `scripts/collection-runtime` | `collection-runtime.js` | Collection detail pages | None beyond Jellyfin API access | Adds total runtime and an "Ends at" time to collection headers |
 | Play Stats | `scripts/play-stats` | `play-stats.js` | Media detail pages | Playback Reporting plugin | Adds total play counts and a per-user play breakdown popup |
-| Rating Tag | `scripts/rating-tag` | `rating-tag.js` | Media cards in libraries and home rows | None beyond Jellyfin API access | Adds content rating badges to cards, including count-aware placement |
+| Rating Tag | `scripts/rating-tag` | `rating-tag.js` | Media cards in libraries and home rows | None beyond Jellyfin API access | Adds content rating badges to cards, including count-aware placement and Scenes/chapter exclusion |
 
 ## Recommended Usage
 
