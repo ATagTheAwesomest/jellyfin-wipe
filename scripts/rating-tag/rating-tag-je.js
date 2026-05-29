@@ -313,6 +313,7 @@
         if (card.classList.contains('chapterCard')) return true;
         if (card.classList.contains('jellyseerr-card')) return true;
         if (card.closest('#scenesCollapsible') || card.closest('#scenesContent')) return true;
+        if (card.querySelector('a[href*="dashboard/users"]')) return true;
         return false;
     }
 
