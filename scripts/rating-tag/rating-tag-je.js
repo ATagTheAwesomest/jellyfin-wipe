@@ -596,7 +596,6 @@
         }
 
         processedCards.add(card);
-        log('Queueing card for processing, itemId:', itemId);
         queueForProcessing(card, itemId);
     }
 
